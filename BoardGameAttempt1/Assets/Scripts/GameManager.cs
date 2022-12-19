@@ -13,15 +13,17 @@ public class GameManager : MonoBehaviour
 
     public List<BoardPlayer> activePlayers = new List<BoardPlayer>();
 
-    public List<int> readyToStart = new List<int>();    
+    public List<int> readyToStart = new List<int>();
 
-    public List<Dice> activeDice = new List<Dice>();    
+    public List<Dice> activeDice = new List<Dice>();
 
     public GameObject dicePrefab;
 
     public int lastNumberRolled;
 
     public CameraFollow boardCam;
+
+    public GameObject DialogObject;
 
     private void Awake()
     {
@@ -48,9 +50,9 @@ public class GameManager : MonoBehaviour
     public void DestroyPlayerDice(int playerId)
     {
         int count = 0;
-        foreach(Dice dice in activeDice)
+        foreach (Dice dice in activeDice)
         {
-            if(playerId == dice.GetLinkedPlayerID())
+            if (playerId == dice.GetLinkedPlayerID())
             {
 
                 activeDice.RemoveAt(count);
@@ -75,6 +77,7 @@ public class GameManager : MonoBehaviour
         {
             case GameState.SelectOrder:
                 RollForGameOrder();
+                UIManager.Instance.ActivatePlayerUI();
                 break;
             case GameState.ActivePlayerTurn:
                 //Find Active Player
@@ -96,8 +99,19 @@ public class GameManager : MonoBehaviour
                 break;
             case GameState.SpaceInteraction:
                 break;
+            case GameState.TrophySpace:
+                DialogObject.SetActive(true);
+                break;
             case GameState.ChangeTurn:
                 UpdateGameState(GameState.ActivePlayerTurn);
+
+                //Not sure why it had to be named this way
+                BoardPlayer activeBoardPlayer2 = GetActivePlayer();
+                if (activeBoardPlayer2.playerItems.Count > 0)
+                {
+                    //Show UI button
+                    UIManager.Instance.ShowInventoryUIButton(true);
+                }
                 break;
             case GameState.EndRound:
                 break;
@@ -131,6 +145,7 @@ public class GameManager : MonoBehaviour
     public void HandleDiceBlock(int playerID)
     {
         bool isPlayerFound = false;
+
         int rolledNumber = GenerateRandomNumberForDice();
         Debug.Log("Player " + playerID + " Rolled: " + rolledNumber);
 
@@ -139,7 +154,7 @@ public class GameManager : MonoBehaviour
             if (readyToStart.Count == 0)
             {
                 readyToStart.Add(playerID);
-                RoundManager.Instance.AddToRoundOrder(playerID, rolledNumber);                
+                RoundManager.Instance.AddToRoundOrder(playerID, rolledNumber);
             }
             else
             {
@@ -152,7 +167,7 @@ public class GameManager : MonoBehaviour
                     }
                 }
                 if (!isPlayerFound)
-                {                    
+                {
                     RoundManager.Instance.AddToRoundOrder(playerID, rolledNumber);
                     readyToStart.Add(playerID);
                 }
@@ -199,9 +214,9 @@ public class GameManager : MonoBehaviour
     {
         BoardPlayer activeBoardPlayer = null;
 
-        foreach(BoardPlayer player in activePlayers)
+        foreach (BoardPlayer player in activePlayers)
         {
-            if(player.GetPlayerID() == RoundManager.Instance.GetActivePlayer())
+            if (player.GetPlayerID() == RoundManager.Instance.GetActivePlayer())
             {
                 activeBoardPlayer = player;
                 break;
@@ -210,10 +225,45 @@ public class GameManager : MonoBehaviour
         return activeBoardPlayer;
     }
 
+    public BoardPlayer GetPlayerByName(string playerToAffect)
+    {
+        foreach (BoardPlayer player in activePlayers)
+        {
+            if (player.playerName == playerToAffect)
+            {
+                return player;
+            }
+        }
+
+        Debug.Log(playerToAffect + " was not found");
+        return null;
+    }
+
     public int GenerateRandomNumberForDice()
     {
-        System.Random rand = new System.Random();
-        return rand.Next(1, 10);
+        BoardPlayer activePlayer = GetActivePlayer();
+
+        if (GameManager.Instance.GetState() == GameState.SelectOrder)
+        {
+            System.Random rand = new System.Random();
+            return rand.Next(1, 10);
+        }
+        else
+        {
+            //Player was hit with a curse block
+            if (activePlayer.IsPlayerCursed())
+            {
+                activePlayer.RemoveCurse();
+
+                System.Random rand = new System.Random();
+                return rand.Next(1, 5);
+            }
+            else
+            {
+                System.Random rand = new System.Random();
+                return rand.Next(1, 10);
+            }
+        }
     }
 
     /// <summary>
@@ -255,16 +305,22 @@ public class GameManager : MonoBehaviour
     {
         return State;
     }
+
+    public void ActivateDialog()
+    {
+        DialogObject.SetActive(true);
+    }
 }
 
 public enum GameState
 {
-    SelectOrder,    
+    SelectOrder,
     ActivePlayerTurn,
     ItemSelect,
     UseItem,
     MovePlayer,
     SpaceInteraction,
+    TrophySpace,
     ChangeTurn,
     EndRound,
     EndGame

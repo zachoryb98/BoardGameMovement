@@ -5,6 +5,11 @@ TagManager:
   serializedVersion: 2
   tags:
   - Dice
+  - PlayerNameText
+  - Coins
+  - Position
+  - Gem
+  - Trophy
   layers:
   - Default
   - TransparentFX

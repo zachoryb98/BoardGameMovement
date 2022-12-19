@@ -6,25 +6,25 @@ public class Waypoint : MonoBehaviour
 {
     public WayPointType type;
 
-    public string GetWayPointType()
+    public WayPointType GetWayPointType()
     {
         if(type == WayPointType.Blue)
         {
-            return "Blue";
+            return WayPointType.Blue;
         }
         else if (type == WayPointType.Red)
         {
-            return "Red";
+            return WayPointType.Red;
         }
         else if (type == WayPointType.Yellow)
         {
-            return "Yellow";
+            return WayPointType.Yellow;
         }
         else if (type == WayPointType.Green)
         {
-            return "Green";
+            return WayPointType.Green;
         }
-        return "Not a valid color";
+        return WayPointType.Blue;
     }
 }
 

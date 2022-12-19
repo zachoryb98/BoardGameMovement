@@ -18,6 +18,8 @@ public class BoardPlayer : MonoBehaviour
     public LayerMask groundMask;
     public float jumpHeight = 3f;
 
+    public GameObject shieldObject;
+
     Vector3 velocity;
     public bool isGrounded;
     public bool isMoving;
@@ -32,7 +34,15 @@ public class BoardPlayer : MonoBehaviour
     public float speed = 5f;
     private Transform currentWaypoint;
     private float distanceThreshold = 0.1f;
+    private bool isRotating;
 
+    public List<PlayerItem> playerItems = new List<PlayerItem>();
+
+    public int coins;
+    public int gems;
+
+    private bool cursed = false;
+    private bool shielded = false;
 
     private BoardPlayer()
     {
@@ -48,6 +58,9 @@ public class BoardPlayer : MonoBehaviour
         anim = this.GetComponent<Animator>();
 
         OGRot = gameObject.transform.rotation;
+
+        coins = 20;
+        gems = 0;
     }
 
     private void Update()
@@ -65,12 +78,15 @@ public class BoardPlayer : MonoBehaviour
         if (GameManager.Instance.GetState() == GameState.ActivePlayerTurn)
         {
             if (RoundManager.Instance.GetActivePlayer() == playerID)
-            {
+            {              
                 isMoving = false;
                 if (isGrounded)
                 {
                     if (Input.GetKeyDown(KeyCode.Space) && !isMoving)
                     {
+                        //Disable Button for item UI
+                        UIManager.Instance.ShowInventoryUIButton(false);
+
                         //GameManager will give us rolled number and tell us how many spaces to move
                         StartCoroutine(Jump());
                     }
@@ -100,29 +116,41 @@ public class BoardPlayer : MonoBehaviour
 
                     
                     transform.position = Vector3.MoveTowards(transform.position, currentWaypoint.position, speed * Time.deltaTime);
+
+                    Vector3 direction = currentWaypoint.position - transform.position;
+                    Quaternion rotation = Quaternion.LookRotation(direction, Vector3.up);
+                    if(transform.rotation != rotation)
+                    {
+                        transform.rotation = Quaternion.RotateTowards(transform.rotation, rotation, rotSpeed * 6 * Time.deltaTime);
+                    }
+
                     if (Vector3.Distance(transform.position, currentWaypoint.position) < distanceThreshold)
                     {
                         if (!waypoints.CheckIfWaypointZero(currentWaypoint))
                         {
+                            if(currentWaypoint.gameObject.GetComponent<Waypoint>().GetWayPointType() == WayPointType.Yellow)
+                            {
+                                Debug.Log("Yellow");
+                                GameManager.Instance.UpdateGameState(GameState.TrophySpace);
+                            }
                             pointsToMove--;
 
                             if(pointsToMove == 0)
                             {
                                 Debug.Log("Waypoint type is: " + currentWaypoint.gameObject.GetComponent<Waypoint>().GetWayPointType());
+                                HandleFinalMove(currentWaypoint.gameObject.GetComponent<Waypoint>().GetWayPointType());
+                                UIManager.Instance.UpdatePlayerOrder();
                             }
                         }
 
                         currentWaypoint = waypoints.GetNextWaypoint(currentWaypoint);
                         //Rotate to next waypoint
-                        Vector3 direction = currentWaypoint.position - transform.position;
-                        Quaternion rotation = Quaternion.LookRotation(direction);
-                        transform.rotation = Quaternion.Lerp(transform.rotation, rotation, rotSpeed * 6 * Time.deltaTime);
                     }
                 }
                 else
                 {
                     Quaternion rotation = Quaternion.LookRotation(Vector3.zero);
-                    transform.rotation = Quaternion.Lerp(transform.rotation, OGRot, rotSpeed * 6 * Time.deltaTime);
+                    transform.rotation = Quaternion.RotateTowards(transform.rotation, OGRot, rotSpeed * 6 * Time.deltaTime);
                     SetNextPlayer();
 
                 }
@@ -132,10 +160,59 @@ public class BoardPlayer : MonoBehaviour
                 transform.rotation = Quaternion.Lerp(transform.rotation, OGRot, rotSpeed * 6 * Time.deltaTime);
             }
         }
+
+
+        if (GameManager.Instance.GetState() == GameState.TrophySpace)
+        {
+            if(GameManager.Instance.GetActivePlayer().GetPlayerID() == playerID)
+            {
+                isMoving = false;
+                anim.SetBool("isMoving", false);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, OGRot, rotSpeed * 6 * Time.deltaTime);
+            }
+        }
     }
 
+    public void HandleFinalMove(WayPointType type)
+    {
+        switch (type)
+        {
+            case WayPointType.Blue:
+                Debug.Log("Space is blue");
+                coins += 5;
+                UIManager.Instance.UpdateCoins(this);
+                break;
+            case WayPointType.Red:
+                Debug.Log("Space is red");
+                if(coins <= 5)
+                {
+                    coins = 0;
+                }
+                else
+                {
+                    coins -= 5;
+                }
 
+                UIManager.Instance.UpdateCoins(this);
+                break;
+            case WayPointType.Green:
+                Debug.Log("Space is green");
+                PlayerItem playerItem = (PlayerItem)UnityEngine.Random.Range(0, 3);
 
+                Debug.Log("Player got " + playerItem.ToString());
+
+                playerItems.Add(playerItem);
+
+                break;
+            case WayPointType.Yellow:
+                Debug.Log("Space is yellow");
+                //Implement trophy reward logic
+                break;
+            default:
+                Debug.Log("Not a space type");
+                break;
+        }
+    }
 
     public IEnumerator WaitThenMove(int rolledNumber)
     {
@@ -178,4 +255,42 @@ public class BoardPlayer : MonoBehaviour
     {
         return playerID;
     }
+
+    public void CursePlayer()
+    {
+        cursed = true;
+    }
+
+    public void ProtectPlayer()
+    {
+        shielded = true;
+    }
+
+    internal bool IsPlayerCursed()
+    {
+        return cursed;
+    }
+
+    internal bool isPlayerProtected()
+    {
+        return shielded;
+    }
+
+    internal void RemoveCurse()
+    {
+        cursed = false;
+    }
+
+    internal void RemoveShield()
+    {
+        shielded = false;
+    }
+}
+
+public enum PlayerItem
+{
+    CoinTransfer,
+    CursedDice,
+    PositionSwap,
+    Shield
 }
