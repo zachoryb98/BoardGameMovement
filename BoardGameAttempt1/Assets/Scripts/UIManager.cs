@@ -197,10 +197,7 @@ public class UIManager : MonoBehaviour
         int shieldCount = 0;
 
         //Set Item select active
-        btnCoinSteal.SetActive(true);
-        btnUnluckyDice.SetActive(true);
-        btnTeleport.SetActive(true);
-        btnShield.SetActive(true);
+        ChangePlayerButtonActive(true);
         btnCloseInventory.SetActive(true);
 
         //Get Active Player Items
@@ -268,11 +265,7 @@ public class UIManager : MonoBehaviour
 
     public void CoinTransferSetUpPlayerButtons()
     {
-        //Set Item select active
-        btnCoinSteal.SetActive(false);
-        btnUnluckyDice.SetActive(false);
-        btnTeleport.SetActive(false);
-        btnShield.SetActive(false);
+        ChangePlayerButtonActive(false);
 
         selectedItem = "Coin Steal";
         DisplayPlayersAvailableToHit();
@@ -280,14 +273,32 @@ public class UIManager : MonoBehaviour
 
     public void CurseBlockSetUpPlayerButtons()
     {
-        //Set Item select active
-        btnCoinSteal.SetActive(false);
-        btnUnluckyDice.SetActive(false);
-        btnTeleport.SetActive(false);
-        btnShield.SetActive(false);
+        ChangePlayerButtonActive(false);
 
         selectedItem = "Cursed Block";
         DisplayPlayersAvailableToHit();
+    }
+
+    public void TeleportSetUpPlayerButtons()
+    {
+        ChangePlayerButtonActive(false);
+
+        selectedItem = "Teleport";
+        DisplayPlayersAvailableToHit();
+    }
+
+    public void SetUpProtection()
+    {
+        selectedItem = "Shield";
+        UseItemOnSelf();
+    }
+
+    public void ChangePlayerButtonActive(bool status)
+    {
+        btnCoinSteal.SetActive(status);
+        btnUnluckyDice.SetActive(status);
+        btnTeleport.SetActive(status);
+        btnShield.SetActive(status);
     }
 
     private void DisplayPlayersAvailableToHit()
@@ -310,6 +321,29 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private void UseItemOnSelf()
+    {        
+        switch (selectedItem)
+        {
+            case "Shield":
+                CloseInventory();
+                ShowInventoryUIButton(false);
+                BoardPlayer player = GameManager.Instance.GetActivePlayer();
+                player.ProtectPlayer();
+                player.RemoveItem(PlayerItem.Shield);
+                break;
+            default:
+                Debug.Log("Item Not implemented to use on self");
+                break;
+        }
+
+        foreach (var button in PlayerSelectionButtons)
+        {
+            button.SetActive(false);
+        }
+        selectedItem = "";
+    } 
+
     public void UseItemOnPlayer(TextMeshProUGUI playerName)
     {
         string selectedPlayerName = playerName.text;
@@ -319,7 +353,16 @@ public class UIManager : MonoBehaviour
 
         switch (selectedItem)
         {
-            case "Coin Steal":                                
+            case "Coin Steal":
+
+                activePlayer.RemoveItem(PlayerItem.CoinTransfer);
+                if (playerToAffect.isPlayerProtected())
+                {
+                    playerToAffect.RemoveShield();
+                    Debug.Log(playerToAffect.playerName + " was unable to steal coins from " + activePlayer.playerName);
+                    break;
+                }
+
                 //Deduct
                 playerToAffect.coins -= 5;
                 UpdateCoins(playerToAffect);
@@ -327,13 +370,51 @@ public class UIManager : MonoBehaviour
                 //Add
                 activePlayer.coins += 5;
                 UpdateCoins(activePlayer);
-
+                
                 Debug.Log(activePlayer.playerName + " stole 5 coins from " + playerToAffect.playerName);
                 break;
             case "Cursed Block":
+
+                activePlayer.RemoveItem(PlayerItem.PositionSwap);
+                if (playerToAffect.isPlayerProtected())
+                {
+                    playerToAffect.RemoveShield();
+                    Debug.Log(playerToAffect.playerName + " was unable to curse " + activePlayer.playerName);
+                    break;
+                }
+
                 playerToAffect.CursePlayer();
+
+                activePlayer.RemoveItem(PlayerItem.CursedDice);
+
                 Debug.Log(activePlayer.playerName + " Cursed " + playerToAffect.playerName);
                 break;
+            case "Teleport":
+                
+                if (playerToAffect.isPlayerProtected())
+                {
+                    playerToAffect.RemoveShield();
+                    Debug.Log(activePlayer.playerName + " was unable to swap places" + playerToAffect.playerName);
+                    break;
+                }
+
+                Vector3 userPosition = activePlayer.transform.position;
+                Vector3 affectedPosition = playerToAffect.transform.position;
+
+                Transform activeUserWaypoint = activePlayer.GetCurrentWaypoint();                
+                Transform affectedUserWaypoint = playerToAffect.GetCurrentWaypoint();
+
+                //Move Affected Player to users position
+                playerToAffect.TeleportTo(userPosition, activeUserWaypoint);
+                activePlayer.TeleportTo(affectedPosition, affectedUserWaypoint);
+
+                //Destroy associated dice and change turn
+                GameManager.Instance.DestroyPlayerDiceAfterTeleport(activePlayer.playerID);
+
+                Debug.Log(activePlayer.playerName + " Swapped Places with " + playerToAffect.playerName);
+                GameManager.Instance.UpdateGameState(GameState.MovePlayer, 0);                    
+                break;
+
             default:
                 Debug.Log("Item not implemented");
                 break;

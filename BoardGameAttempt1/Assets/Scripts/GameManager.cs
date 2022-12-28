@@ -64,6 +64,21 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void DestroyPlayerDiceAfterTeleport(int playerId)
+    {
+        int count = 0;
+        foreach (Dice dice in activeDice)
+        {
+            if (playerId == dice.GetLinkedPlayerID())
+            {
+                activeDice.RemoveAt(count);
+                dice.DestroyDice();                
+                break;
+            }
+            count++;
+        }
+    }
+
     public void AddDice(Dice dice)
     {
         activeDice.Add(dice);

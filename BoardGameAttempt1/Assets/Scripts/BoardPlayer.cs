@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class BoardPlayer : MonoBehaviour
 {
@@ -69,7 +70,7 @@ public class BoardPlayer : MonoBehaviour
 
         if (GameManager.Instance.GetState() == GameState.SelectOrder)
         {
-            if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+            if (Keyboard.current.spaceKey.wasPressedThisFrame && isGrounded)
             {
                 StartCoroutine(Jump());
             }
@@ -82,7 +83,7 @@ public class BoardPlayer : MonoBehaviour
                 isMoving = false;
                 if (isGrounded)
                 {
-                    if (Input.GetKeyDown(KeyCode.Space) && !isMoving)
+                    if (Keyboard.current.spaceKey.wasPressedThisFrame && !isMoving)
                     {
                         //Disable Button for item UI
                         UIManager.Instance.ShowInventoryUIButton(false);
@@ -197,7 +198,7 @@ public class BoardPlayer : MonoBehaviour
                 break;
             case WayPointType.Green:
                 Debug.Log("Space is green");
-                PlayerItem playerItem = (PlayerItem)UnityEngine.Random.Range(0, 3);
+                PlayerItem playerItem = (PlayerItem)UnityEngine.Random.Range(0, 4);
 
                 Debug.Log("Player got " + playerItem.ToString());
 
@@ -242,13 +243,27 @@ public class BoardPlayer : MonoBehaviour
         GameManager.Instance.DestroyPlayerDice(playerID);
     }
 
-    private void SetNextPlayer()
+    public void SetNextPlayer()
     {
         isMoving = false;
         anim.SetBool("isMoving", isMoving);
         Quaternion rotation = Quaternion.LookRotation(Vector3.zero);
         transform.rotation = Quaternion.Lerp(transform.rotation, OGRot, rotSpeed * 3 * Time.deltaTime);
         RoundManager.Instance.SetNextActivePlayer(this);
+    }
+
+    public void RemoveItem(PlayerItem playerItem)
+    {
+        int i = 0;
+        foreach (var item in playerItems)
+        {            
+            if(item == playerItem)
+            {
+                playerItems.RemoveAt(i);
+            }
+            i++;
+        }
+        Debug.Log("Item not found in inventory");
     }
 
     public int GetPlayerID()
@@ -264,6 +279,7 @@ public class BoardPlayer : MonoBehaviour
     public void ProtectPlayer()
     {
         shielded = true;
+        shieldObject.SetActive(true);
     }
 
     internal bool IsPlayerCursed()
@@ -284,6 +300,18 @@ public class BoardPlayer : MonoBehaviour
     internal void RemoveShield()
     {
         shielded = false;
+        shieldObject.SetActive(false);
+    }
+
+    internal void TeleportTo(Vector3 playerPosition, Transform waypoint)
+    {
+        this.transform.position = playerPosition;
+        this.currentWaypoint = waypoint;
+    }
+
+    internal Transform GetCurrentWaypoint()
+    {
+        return currentWaypoint;
     }
 }
 
